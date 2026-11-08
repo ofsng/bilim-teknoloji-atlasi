@@ -1,0 +1,4 @@
+# Cloudflare Pages: statik çıktı. Panelden bağlarken derleme komutu "npm run build", çıktı klasörü "out".
+name = "bilim-teknoloji-atlasi"
+pages_build_output_dir = "out"
+compatibility_date = "2026-10-01"

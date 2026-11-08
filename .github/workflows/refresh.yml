@@ -1,0 +1,19 @@
+name: Veri tazeleme
+
+# Bilgi tabanı her gün otomatik güncellenir. Bu iş, Cloudflare Pages derleme kancasını tetikleyerek
+# atlası en son veriyle yeniden derletir. Bilgi tabanı deposunda hiçbir değişiklik gerektirmez.
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cloudflare Pages derleme kancası
+        env:
+          HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "CF_PAGES_DEPLOY_HOOK tanımlı değil; atlanıyor."; exit 0; fi
+          curl -fsS -X POST "$HOOK"
