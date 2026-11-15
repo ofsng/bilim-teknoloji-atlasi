@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { parseFrontmatter, str, list, normTitle, type Meta } from "./frontmatter";
+import { parseFrontmatter, str, list, objects, normTitle, type Meta, type MetaValue } from "./frontmatter";
 import { renderMarkdown, type LinkContext } from "./markdown";
 import type {
-  Atlas, AtlasStats, AtlasWire, NodeDetail, NodeType, RelKind, ResearchDetail, ResearchItem, Section, TechNode,
+  Atlas, AtlasStats, AtlasWire, NodeDetail, NodeType, RelatedVersion, RelKind, ResearchDetail, ResearchItem, Section, TechNode,
 } from "../../src/lib/types";
 import { REL_KINDS } from "../../src/lib/types";
 
@@ -43,6 +43,30 @@ export function splitSections(body: string): { n: number; title: string; content
     const end = i + 1 < matches.length ? matches[i + 1].index! : body.length;
     return { n: parseInt(m[1], 10), title: m[2], content: body.slice(start, end).trim() };
   });
+}
+
+/**
+ * related_versions öğelerini okunur biçime getirir. Bilgi tabanında `doi` alanı bazen bir arXiv kimliği ya da
+ * tam URL içerir; değer olduğu gibi gösterilir, yalnızca bağlantı türü tanınabiliyorsa bağlantı üretilir.
+ */
+export function relatedVersions(v: MetaValue | undefined): RelatedVersion[] {
+  const s = (x: unknown) => (typeof x === "string" && x.trim() ? x.trim() : null);
+  const out: RelatedVersion[] = objects(v).map((o) => {
+    const id = s(o.doi) ?? s(o.arxiv);
+    return { relation: s(o.relation) ?? "", id, href: id ? versionHref(id, !s(o.doi)) : null, journalRef: s(o.journal_ref), source: s(o.source) };
+  });
+  // Eski biçim: düz metin öğeler
+  for (const t of list(v)) out.push({ relation: "", id: t, href: versionHref(t, false), journalRef: null, source: null });
+  return out;
+}
+
+export function versionHref(id: string, isArxiv: boolean): string | null {
+  if (/^https?:\/\//i.test(id)) return id;
+  const doi = id.replace(/^doi:\s*/i, "");
+  if (/^10\.\d{4,9}\/\S+$/.test(doi)) return `https://doi.org/${doi}`;
+  const ax = id.replace(/^arxiv:\s*/i, "");
+  if (isArxiv || /^\d{4}\.\d{4,5}(v\d+)?$/.test(ax) || /^[a-z-]+(\.[A-Z]{2})?\/\d{7}(v\d+)?$/.test(ax)) return `https://arxiv.org/abs/${ax}`;
+  return null;
 }
 
 export function researchKey(rid: string): string {
@@ -311,7 +335,7 @@ export function buildAtlas(root: string, opts: BuildOptions): BuildOutput {
       keywords: list(m.keywords),
       abstractLicense: str(m.abstract_license),
       sourceIds: list(m.source_ids),
-      relatedVersions: list(m.related_versions),
+      relatedVersions: relatedVersions(m.related_versions),
       collectedAt: str(m.collected_at),
       lastCheckedAt: str(m.last_checked_at),
       retractionChecked: str(m.retraction_checked),

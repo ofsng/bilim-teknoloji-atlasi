@@ -166,6 +166,17 @@ describe("bilgi tabanı → atlas verisi", () => {
     for (const n of ai) expect(n.verified).toBe(false);
   });
 
+  it("hiçbir çıktıda nesne metne dönüşmez ([object Object] yok)", () => {
+    const all = JSON.stringify([out.atlas, out.details, out.researchDetails]);
+    expect(all).not.toContain("[object Object]");
+    for (const d of out.researchDetails) {
+      for (const v of d.relatedVersions) {
+        expect(typeof v.relation).toBe("string");
+        if (v.href) expect(v.href).toMatch(/^https?:\/\//);
+      }
+    }
+  });
+
   it("sıkıştırılmış biçimden geri yükleme aynı ağacı ve ilişkileri verir", () => {
     const ix = hydrate(JSON.parse(JSON.stringify(toWire(out.atlas))));
     expect(ix.atlas.nodes.length).toBe(out.atlas.nodes.length);

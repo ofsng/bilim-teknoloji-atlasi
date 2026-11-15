@@ -57,6 +57,8 @@ export default function DetailPanel(p: Props) {
   );
 }
 
+const VERSION_LABEL: Record<string, string> = { preprint: "Ön baskı", published_version: "Yayımlanmış sürüm" };
+
 function useCopy() {
   const [copied, setCopied] = useState(false);
   const copy = async (text: string) => {
@@ -469,7 +471,31 @@ function ResearchView({ index, item: r, onSelect, onBack }: Props & { item: Rese
             {detail.keywords.length > 0 && (<div><dt className="text-muted">Anahtar sözcükler</dt><dd lang="en">{detail.keywords.join(", ")}</dd></div>)}
             <div><dt className="text-muted">Özet lisansı</dt><dd>{detail.abstractLicense ?? "belirtilmemiş — özet kopyalanmadı"}. {LICENSE_NOTE}</dd></div>
             {detail.sourceIds.length > 0 && (<div><dt className="text-muted">Metadata kaynakları</dt><dd className="break-all">{detail.sourceIds.join(", ")}</dd></div>)}
-            {detail.relatedVersions.length > 0 && (<div><dt className="text-muted">Diğer sürümler</dt><dd className="break-all">{detail.relatedVersions.join(", ")}</dd></div>)}
+            {detail.relatedVersions.length > 0 && (
+              <div>
+                <dt className="text-muted">Diğer sürümler</dt>
+                <dd>
+                  <ul className="space-y-1">
+                    {detail.relatedVersions.map((v, i) => (
+                      <li key={i} className="break-words">
+                        <span className="text-muted">{VERSION_LABEL[v.relation] ?? (v.relation || "Sürüm")}: </span>
+                        {v.id ? (
+                          v.href ? (
+                            <a href={v.href} target="_blank" rel="noopener noreferrer" className="break-all text-accent underline underline-offset-2">{v.id}</a>
+                          ) : (
+                            <span className="break-all">{v.id}</span>
+                          )
+                        ) : (
+                          "tanımlayıcı yok"
+                        )}
+                        {v.journalRef && <span className="block text-faint" lang="en">{v.journalRef}</span>}
+                        {v.source && <span className="text-faint"> (kaynak: {v.source})</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              </div>
+            )}
             <div><dt className="text-muted">Toplanma · son denetim</dt><dd>{formatDate(detail.collectedAt)} · {formatDate(detail.lastCheckedAt)}</dd></div>
           </dl>
         </section>

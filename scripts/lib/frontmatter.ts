@@ -2,10 +2,12 @@
 // basit YAML alt kümesini kullanır; genel bir YAML ayrıştırıcısı aynı sonucu vermez.
 
 export type Scalar = string | number | boolean | null;
-export type MetaValue = Scalar | Scalar[];
+/** Liste öğeleri JSON olarak ayrıştırıldığından nesne de olabilir (ör. related_versions). */
+export type ListItem = Scalar | Record<string, unknown>;
+export type MetaValue = Scalar | ListItem[];
 export type Meta = Record<string, MetaValue>;
 
-function parseList(val: string): Scalar[] {
+function parseList(val: string): ListItem[] {
   try {
     const v = JSON.parse(val);
     if (Array.isArray(v)) return v;
@@ -59,7 +61,14 @@ export function str(v: MetaValue | undefined): string | null {
 
 export function list(v: MetaValue | undefined): string[] {
   if (!Array.isArray(v)) return [];
-  return v.filter((x) => x !== null && x !== "").map(String);
+  // Yalnızca düz değerler; nesne öğeleri metne çevrilmez ("[object Object]" olmasın).
+  return v.filter((x) => x !== null && x !== "" && typeof x !== "object").map(String);
+}
+
+/** Nesne öğeli listeler için: düz değerler atlanır. */
+export function objects(v: MetaValue | undefined): Record<string, unknown>[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x));
 }
 
 const TR_MAP: Record<string, string> = {

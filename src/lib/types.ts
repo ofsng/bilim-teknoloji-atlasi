@@ -79,13 +79,25 @@ export interface NodeDetail {
   lastMaintained: string | null;
 }
 
+/** Aynı çalışmanın başka bir sürümü (ön baskı ↔ yayımlanmış). Değerler kayıttaki gibi korunur. */
+export interface RelatedVersion {
+  /** Kayıttaki ilişki: preprint | published_version | … */
+  relation: string;
+  /** Kayıtta yazan tanımlayıcı (doi ya da arxiv alanı), değiştirilmeden */
+  id: string | null;
+  /** Tanımlayıcıdan türetilen bağlantı; türetilemezse null */
+  href: string | null;
+  journalRef: string | null;
+  source: string | null;
+}
+
 export interface ResearchDetail {
   key: string;
   sections: Section[];
   keywords: string[];
   abstractLicense: string | null;
   sourceIds: string[];
-  relatedVersions: string[];
+  relatedVersions: RelatedVersion[];
   collectedAt: string | null;
   lastCheckedAt: string | null;
   retractionChecked: string | null;
