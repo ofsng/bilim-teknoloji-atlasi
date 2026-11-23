@@ -31,6 +31,8 @@ export interface TechNode {
   resAll: number;
   /** Alt ağaçtaki düğüm sayısı (kendisi hariç) */
   desc: number;
+  /** Tanıtım kartı (_tanitim.md) var mı */
+  intro: boolean;
   /** Depodaki klasör yolu (yalnızca ayrıntı dosyasında gelir) */
   path?: string;
 }
@@ -65,6 +67,34 @@ export interface Section {
   html: string;
 }
 
+export interface IntroItem {
+  /** Kilometre taşında yıl, ana kolda kol adı; yoksa null */
+  label: string | null;
+  /** Kaynak numaraları <sup> bağlantısına çevrilmiş, güvenli HTML */
+  html: string;
+}
+
+export interface IntroSource {
+  n: number;
+  html: string;
+}
+
+/** Standart tanıtım kartı. Boş bloklar boş dizi / null olarak gelir; atlas onları doldurmaz. */
+export interface Intro {
+  status: string;
+  humanVerified: boolean;
+  written: string | null;
+  writtenBy: string | null;
+  summary: string | null;
+  why: string | null;
+  /** "Neler yapıldı" ya da ana disiplinlerde "Ana kollar" */
+  pastTitle: string;
+  past: IntroItem[];
+  today: IntroItem[];
+  next: IntroItem[];
+  sources: IntroSource[];
+}
+
 export interface NodeDetail {
   id: string;
   /** Depodaki klasör yolu */
@@ -77,6 +107,7 @@ export interface NodeDetail {
   contentMode: string | null;
   created: string | null;
   lastMaintained: string | null;
+  intro: Intro | null;
 }
 
 /** Aynı çalışmanın başka bir sürümü (ön baskı ↔ yayımlanmış). Değerler kayıttaki gibi korunur. */
@@ -118,6 +149,7 @@ export interface AtlasStats {
   researchByPubType: Record<string, number>;
   peerReviewed: { yes: number; no: number; unknown: number };
   nodesWithResearch: number;
+  nodesWithIntro: number;
 }
 
 /** atlas.json içindeki sıkıştırılmış düğüm: çocuklar düğüm sırasından, boş ilişkiler atlanır. */

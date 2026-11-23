@@ -4,12 +4,13 @@ import crypto from "node:crypto";
 import { parseFrontmatter, str, list, objects, normTitle, type Meta, type MetaValue } from "./frontmatter";
 import { renderMarkdown, type LinkContext } from "./markdown";
 import type {
-  Atlas, AtlasStats, AtlasWire, NodeDetail, NodeType, RelatedVersion, RelKind, ResearchDetail, ResearchItem, Section, TechNode,
+  Atlas, AtlasStats, AtlasWire, Intro, IntroItem, NodeDetail, NodeType, RelatedVersion, RelKind, ResearchDetail, ResearchItem, Section, TechNode,
 } from "../../src/lib/types";
 import { REL_KINDS } from "../../src/lib/types";
 
 // kb.py ile aynı tarama kuralları
 const INDEX = "_index.md";
+const INTRO = "_tanitim.md";
 const RESEARCH_DIR = "Arastirmalar";
 const SKIP_ROOT = new Set(["tools", "templates", "review", "state", "research-index", RESEARCH_DIR]);
 const HEADING_RE = /^## (\d+)\. (.+?)[ \t]*$/gm;
@@ -69,6 +70,67 @@ export function versionHref(id: string, isArxiv: boolean): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------- tanıtım kartı
+// Biçim: bilgi tabanında templates/tanitim.template.md; kb.py check_intro ile aynı başlıklar.
+
+const INTRO_HEAD_RE = /^## (.+?)[ \t]*$/gm;
+const CITE_RE = /\s*\[(\d+(?:\s*,\s*\d+)*)\]/g;
+
+export function introBlocks(body: string): Map<string, string> {
+  const ms = [...body.matchAll(INTRO_HEAD_RE)];
+  const out = new Map<string, string>();
+  ms.forEach((m, i) => {
+    const end = i + 1 < ms.length ? ms[i + 1].index! : body.length;
+    out.set(m[1], body.slice(m.index! + m[0].length, end).trim());
+  });
+  return out;
+}
+
+/** Satır içi Markdown → güvenli HTML; [1, 2] kaynak numaraları üst simge bağlantısı olur. */
+export function introInline(text: string, ctx: LinkContext): string {
+  const html = renderMarkdown(text, ctx).replace(/^<p>/, "").replace(/<\/p>$/, "");
+  return html.replace(CITE_RE, (_, nums: string) =>
+    "<sup class=\"cite\">" +
+    nums.split(",").map((n) => `<a href="#kaynak-${n.trim()}" data-cite="${n.trim()}">${n.trim()}</a>`).join(",") +
+    "</sup>");
+}
+
+function introItems(block: string | undefined, ctx: LinkContext): IntroItem[] {
+  if (!block) return [];
+  return block
+    .split("\n")
+    .filter((l) => /^\s*-\s+\S/.test(l))
+    .map((l) => {
+      const t = l.replace(/^\s*-\s+/, "");
+      const m = /^\*\*(.+?)\*\*\s*·\s*(.*)$/.exec(t);
+      return m ? { label: m[1], html: introInline(m[2], ctx) } : { label: null, html: introInline(t, ctx) };
+    });
+}
+
+export function buildIntro(raw: { meta: Meta; body: string }, ctx: LinkContext): Intro {
+  const b = introBlocks(raw.body);
+  const para = (k: string) => (b.get(k) ? introInline(b.get(k)!.replace(/\s*\n\s*/g, " "), ctx) : null);
+  const pastTitle = b.has("Ana kollar") ? "Ana kollar" : "Neler yapıldı";
+  const sources = [...(b.get("Kaynaklar") ?? "").matchAll(/^(\d+)\.\s+(.+)$/gm)].map((m) => ({
+    n: Number(m[1]),
+    // Çıplak adresler bağlantıya çevrilir; kaynak metni değiştirilmez.
+    html: renderMarkdown(m[2].replace(/(https?:\/\/\S+)/g, "<$1>"), ctx).replace(/^<p>/, "").replace(/<\/p>$/, ""),
+  }));
+  return {
+    status: str(raw.meta.intro_status) ?? "ai_draft_sourced",
+    humanVerified: raw.meta.human_verified === true,
+    written: str(raw.meta.written),
+    writtenBy: str(raw.meta.written_by),
+    summary: para("Öz"),
+    why: para("Neden önemli"),
+    pastTitle,
+    past: introItems(b.get(pastTitle), ctx),
+    today: introItems(b.get("Bugün nerede"), ctx),
+    next: introItems(b.get("Neler bekleniyor"), ctx),
+    sources,
+  };
+}
+
 export function researchKey(rid: string): string {
   return crypto.createHash("sha1").update(rid).digest("hex").slice(0, 10);
 }
@@ -82,6 +144,7 @@ interface RawNode {
   parent: string | null;
   children: string[];
   research: RawResearch[];
+  intro: { meta: Meta; body: string } | null;
 }
 
 interface RawResearch {
@@ -119,7 +182,9 @@ export function scanKb(root: string): ScanResult {
         const id = str(meta.id) ?? `<idsiz:${rel}>`;
         if (nodes.has(id)) duplicates.push([id, nodes.get(id)!.dir, rel]);
         else {
-          const node: RawNode = { id, meta, body, dir: rel, depth: rel.split("/").length, parent: null, children: [], research: [] };
+          const introPath = path.join(abs, INTRO);
+          const intro = fs.existsSync(introPath) ? parseFrontmatter(fs.readFileSync(introPath, "utf8")) : null;
+          const node: RawNode = { id, meta, body, dir: rel, depth: rel.split("/").length, parent: null, children: [], research: [], intro };
           nodes.set(id, node);
           byDir.set(rel, id);
           const rdir = path.join(abs, RESEARCH_DIR);
@@ -264,6 +329,7 @@ export function buildAtlas(root: string, opts: BuildOptions): BuildOutput {
       res: n.research.length,
       resAll: resAll.get(id)!,
       desc: desc.get(id)!,
+      intro: n.intro !== null,
       path: n.dir,
     });
     if (str(m.parent) && str(m.parent) !== (n.parent ?? "root")) {
@@ -289,6 +355,7 @@ export function buildAtlas(root: string, opts: BuildOptions): BuildOutput {
       contentMode: str(m.content_mode),
       created: str(m.created),
       lastMaintained: str(m.last_maintained),
+      intro: n.intro ? buildIntro(n.intro, ctx) : null,
     });
   }
 
@@ -404,5 +471,6 @@ export function computeStats(nodes: TechNode[], research: ResearchItem[], roots:
     researchByPubType,
     peerReviewed: peer,
     nodesWithResearch: nodes.filter((n) => n.res > 0).length,
+    nodesWithIntro: nodes.filter((n) => n.intro).length,
   };
 }
