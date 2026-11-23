@@ -10,6 +10,7 @@ import {
   fmt, authorsShort, peerLabel, formatDate,
 } from "@/lib/labels";
 import { shareUrl } from "@/lib/url";
+import IntroCard from "./IntroCard";
 import type { Selection } from "./AtlasApp";
 
 interface Props {
@@ -197,7 +198,9 @@ function TechView({ index, node, onSelect, onSelectResearch, onFocus }: Props & 
           Diğer adlar: <span lang="en">{node.aliases.join(", ")}</span>
         </p>
       )}
-      <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+      <details className="mt-2 text-xs" open={!node.intro}>
+        <summary className="cursor-pointer text-muted hover:text-fg">Sınıflandırma bilgileri</summary>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
         <dt className="text-faint">Tür</dt>
         <dd>{TYPE_LABEL[node.type] ?? node.type} · seviye {node.depth}</dd>
         <dt className="text-faint">Durum</dt>
@@ -209,6 +212,7 @@ function TechView({ index, node, onSelect, onSelectResearch, onFocus }: Props & 
         <dt className="text-faint">Kimlik</dt>
         <dd><code className="text-[0.7rem]">{node.id}</code></dd>
       </dl>
+      </details>
       <div className="mt-3 flex flex-wrap gap-2 text-sm">
         <button type="button" onClick={() => onFocus(node.id)} className="rounded border border-line px-2.5 py-1 hover:bg-subtle">
           Haritada odaklan
@@ -228,18 +232,9 @@ function TechView({ index, node, onSelect, onSelectResearch, onFocus }: Props & 
       </div>
       <span className="sr-only" aria-live="polite">{copied ? "Bağlantı panoya kopyalandı" : ""}</span>
 
-      <div className="mt-4">
-        <ContentNotice node={node} detail={detail} />
-      </div>
-
       {err && <p className="mt-4 text-sm text-danger-fg">Açıklama dosyası yüklenemedi.</p>}
       {!detail && !err && <p className="mt-4 text-sm text-muted">Açıklama yükleniyor…</p>}
-      {detail?.sections.map((s) => (
-        <section key={s.n} aria-labelledby={`s-${s.n}`}>
-          <H3 id={`s-${s.n}`}>{s.title}</H3>
-          <div className="prose-kb" dangerouslySetInnerHTML={{ __html: s.html }} />
-        </section>
-      ))}
+      {detail?.intro && <IntroCard intro={detail.intro} node={node} />}
 
       <section aria-labelledby="h-children">
         <H3 id="h-children">Alt teknolojiler ({fmt.format(node.children.length)})</H3>
@@ -266,6 +261,19 @@ function TechView({ index, node, onSelect, onSelectResearch, onFocus }: Props & 
           <p className="text-sm text-muted">Bu düğüm bir yapraktır; alt sınıflandırması yok.</p>
         )}
       </section>
+
+      {detail && (detail.sections.length > 0 || !detail.intro) && (
+        <div className="mt-4">
+          <ContentNotice node={node} detail={detail} />
+        </div>
+      )}
+      {detail?.sections.map((s) => (
+        <section key={s.n} aria-labelledby={`s-${s.n}`}>
+          <H3 id={`s-${s.n}`}>{s.title}</H3>
+          <div className="prose-kb" dangerouslySetInnerHTML={{ __html: s.html }} />
+        </section>
+      ))}
+
 
       <section aria-labelledby="h-rel">
         <H3 id="h-rel">Hiyerarşi dışı ilişkiler</H3>

@@ -157,3 +157,20 @@ body {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Tanıtım kartı: kaynak numaraları ve satır içi bağlantılar */
+.intro-card sup.cite {
+  margin-left: 0.1em;
+  font-size: 0.68em;
+  font-family: var(--font-sans);
+}
+.intro-card sup.cite a,
+.intro-card li a {
+  color: var(--accent);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.intro-card sup.cite a:hover,
+.intro-card li a:hover {
+  text-decoration: underline;
+}
